@@ -56,9 +56,14 @@ def read_name(configs, dataset_path, dataset):
 
 
 def get_ground_truth(configs, triples):
+    '''
+    获得并保存数据集的真实标签：预测tail/head
+    这里用 ddict+list 的作用可能是有一对多/多对一的关系
+    '''
     tail_ground_truth, head_ground_truth = ddict(list), ddict(list)
     for triple in triples:
         if configs.temporal:
+            # 如果是TKGC情况，加入时间信息
             head, tail, rel, time = triple
             tail_ground_truth[(head, rel, time)].append(tail)
             head_ground_truth[(tail, rel, time)].append(head)
@@ -117,6 +122,7 @@ def get_soft_prompt_pos(configs, source_ids, target_ids, mode):
 
 
 def construct_prefix_trie(ent_token_ids_in_trie):
+    # 构造一个Trie前缀树？，所有input为True
     trie = pygtrie.Trie()
     for input_ids in ent_token_ids_in_trie:
         trie[input_ids] = True

@@ -23,6 +23,8 @@ def main():
 
     ## construct name list
     original_ent_name_list, rel_name_list = read_name(configs, configs.dataset_path, configs.dataset)
+    # original_ent_name_list: 实体的名字列表
+    # rel_name_list: 关系的名字列表
     tokenizer = T5Tokenizer.from_pretrained(configs.pretrained_model)
     description_list = read_file(configs, configs.dataset_path, configs.dataset, 'entityid2description.txt', 'descrip')
     print('tokenizing entities...')
@@ -31,15 +33,22 @@ def main():
 
     ## construct prefix trie
     # ent_token_ids_in_trie .type: list(list(ids))
+    # ent_token_ids_in_trie: entity 名称加标识符 转换为id
     ent_token_ids_in_trie = tokenizer(['<extra_id_0>' + ent_name + '<extra_id_1>' for ent_name in original_ent_name_list], max_length=configs.train_tgt_max_length, truncation=True).input_ids
-
+    
     if configs.tgt_descrip_max_length > 0:
+        # 加描述信息
         ent_token_ids_in_trie_with_descrip = tokenizer(['<extra_id_0>' + ent_name + '[' + tgt_description_list[i] + ']' + '<extra_id_1>' for i, ent_name in enumerate(original_ent_name_list)], max_length=configs.train_tgt_max_length, truncation=True).input_ids
         prefix_trie = construct_prefix_trie(ent_token_ids_in_trie_with_descrip)
         neg_candidate_mask, next_token_dict = get_next_token_dict(configs, ent_token_ids_in_trie_with_descrip, prefix_trie)
     else:
         prefix_trie = construct_prefix_trie(ent_token_ids_in_trie)
         neg_candidate_mask, next_token_dict = get_next_token_dict(configs, ent_token_ids_in_trie, prefix_trie)
+    # 应该是生成decoder端的prefix，限制生成的都是entity list中的entity
+    # print(len(prefix_trie))
+    # print(len(neg_candidate_mask))
+    # print(len(next_token_dict))
+    
     ent_name_list = tokenizer.batch_decode([tokens[1:-2] for tokens in ent_token_ids_in_trie])
     name_list_dict = {
         'original_ent_name_list': original_ent_name_list,
@@ -158,7 +167,7 @@ if __name__ == '__main__':
     configs.vocab_size = T5Config.from_pretrained(configs.pretrained_model).vocab_size
     configs.model_dim = T5Config.from_pretrained(configs.pretrained_model).d_model
     if configs.save_dir == '':
-        configs.save_dir = os.path.join('./checkpoint', configs.dataset + '-' + str(datetime.now()))
+        configs.save_dir = os.path.join(os.getcwd(), 'checkpoint', configs.dataset + '-' + str(datetime.now().strftime('%Y-%m-%d-%H-%M-%S')))
     os.makedirs(configs.save_dir, exist_ok=True)
     print(configs, flush=True)
 

@@ -178,9 +178,9 @@ class DataModule(pl.LightningDataModule):
         # ent_name_list, rel_name_list .type: list
         self.name_list_dict = name_list_dict
         self.prefix_trie_dict = prefix_trie_dict
-        self.ground_truth_dict = ground_truth_dict
+        self.ground_truth_dict = ground_truth_dict # 真实标签
 
-        self.tokenizer = T5Tokenizer.from_pretrained(configs.pretrained_model)
+        self.tokenizer = T5Tokenizer.from_pretrained(configs.pretrained_model) # 编码器 default='t5-base'
         self.train_both = None
         self.valid_tail, self.valid_head = None, None
         self.test_tail, self.test_head = None, None
