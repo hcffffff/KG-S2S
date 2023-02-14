@@ -57,8 +57,8 @@ def read_name(configs, dataset_path, dataset):
 
 def get_ground_truth(configs, triples):
     '''
-    获得并保存数据集的真实标签：预测tail/head
-    这里用 ddict+list 的作用可能是有一对多/多对一的关系
+    获得并保存数据集的'真实'标签 预测tail/head
+    这里用 ddict+list 的作用是有一对多/多对一的关系
     '''
     tail_ground_truth, head_ground_truth = ddict(list), ddict(list)
     for triple in triples:
@@ -75,9 +75,18 @@ def get_ground_truth(configs, triples):
 
 
 def get_next_token_dict(configs, ent_token_ids_in_trie, prefix_trie):
+    '''
+    next_token_dict: 大小远远大于entity name数量
+    简单来说是从所有entity name生成独特的前缀表达，如果前缀存在，input_id往后遍历1位，直到这是一个独特的前缀
+    然后以这个前缀为开头，以字典形式记录后一位，然后生成另一个字典项，键为这个前缀加后一位，值为再下一位，循环此操作，直到这个ent_token_ids被遍历完
+    遍历数据集中所有的token(+description)生成next_token_dict
+    neg_candidate_mask: 大小为entity name数量
+    暂时不知道怎么用 TODO
+    '''
     neg_candidate_mask = []
     next_token_dict = {(): [32099] * configs.n_ent}
     for ent_id in tqdm(range(configs.n_ent)):
+        # 数据集种实体的数量 for WN18RR: n_ent=40943
         rows, cols = [0], [32099]
         input_ids = ent_token_ids_in_trie[ent_id]
         for pos_id in range(1, len(input_ids)):

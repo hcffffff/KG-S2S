@@ -30,6 +30,8 @@ def main():
     print('tokenizing entities...')
     src_description_list = tokenizer.batch_decode([descrip[:-1] for descrip in tokenizer(description_list, max_length=configs.src_descrip_max_length, truncation=True).input_ids])
     tgt_description_list = tokenizer.batch_decode([descrip[:-1] for descrip in tokenizer(description_list, max_length=configs.tgt_descrip_max_length, truncation=True).input_ids])
+    # src_description_list与tgt_description_list 在内容上无较大差异，不过二者单句token数量受到src/tgt_descrip_max_length参数限制
+    # list 表示entity的描述信息 用token表示
 
     ## construct prefix trie
     # ent_token_ids_in_trie .type: list(list(ids))
@@ -39,17 +41,19 @@ def main():
     if configs.tgt_descrip_max_length > 0:
         # 加描述信息
         ent_token_ids_in_trie_with_descrip = tokenizer(['<extra_id_0>' + ent_name + '[' + tgt_description_list[i] + ']' + '<extra_id_1>' for i, ent_name in enumerate(original_ent_name_list)], max_length=configs.train_tgt_max_length, truncation=True).input_ids
+        # ent_token_ids_in_trie_with_descrip: <extra_id_0> tombstone, NN, 1[a stone that is used to mark]<extra_id_1> </s> // 用id表示的
+        print("cosntructing prefix trie with description...")
         prefix_trie = construct_prefix_trie(ent_token_ids_in_trie_with_descrip)
         neg_candidate_mask, next_token_dict = get_next_token_dict(configs, ent_token_ids_in_trie_with_descrip, prefix_trie)
     else:
+        # 不加描述信息
+        print("cosntructing prefix trie without description...")
         prefix_trie = construct_prefix_trie(ent_token_ids_in_trie)
         neg_candidate_mask, next_token_dict = get_next_token_dict(configs, ent_token_ids_in_trie, prefix_trie)
-    # 应该是生成decoder端的prefix，限制生成的都是entity list中的entity
-    # print(len(prefix_trie))
-    # print(len(neg_candidate_mask))
-    # print(len(next_token_dict))
+    # 生成decoder端的prefix dict，限制生成的都是entity list中的entity，具体见函数
     
     ent_name_list = tokenizer.batch_decode([tokens[1:-2] for tokens in ent_token_ids_in_trie])
+    # 去除特殊字符<extra_id> 和 </s> 的entity name list
     name_list_dict = {
         'original_ent_name_list': original_ent_name_list,
         'ent_name_list': ent_name_list,
@@ -79,6 +83,7 @@ def main():
         'all_head_ground_truth': all_head_ground_truth,
     }
 
+    # pytorch-lightning的扩展类
     datamodule = DataModule(configs, train_triples, valid_triples, test_triples, name_list_dict, prefix_trie_dict, ground_truth_dict)
     print('datamodule construction done.', flush=True)
 
