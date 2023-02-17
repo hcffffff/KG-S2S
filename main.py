@@ -181,4 +181,3 @@ if __name__ == '__main__':
     torch.backends.cudnn.deterministic = True
     torch.set_printoptions(profile='full')
     main()
-    print("test.")
