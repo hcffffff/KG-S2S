@@ -111,6 +111,7 @@ num_heads)`.
 
 
 class ModifiedT5ForConditionalGeneration(T5PreTrainedModel):
+    # 与transformers库 https://github.com/huggingface/transformers/blob/v4.16.2/src/transformers/models/t5/modeling_t5.py#L1434 中的T5ForConditionalGeneration相比修改了输出的loss部分：line 297-298
     _keys_to_ignore_on_load_missing = [
         r"encoder\.embed_tokens\.weight",
         r"decoder\.embed_tokens\.weight",

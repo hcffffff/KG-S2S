@@ -19,16 +19,20 @@ class TrainDataset(Dataset):
         self.neg_candidate_mask = prefix_trie_dict['neg_candidate_mask']
 
     def __len__(self):
+        # 因为train数据集是同时预测head和tail 所以 *2
         return len(self.train_triples) * 2
 
     def __getitem__(self, index):
-        train_triple = self.train_triples[index // 2]
-        mode = 'tail' if index % 2 == 0 else 'head'
+        train_triple = self.train_triples[index // 2] # 因为上面有 *2 的操作
+        mode = 'tail' if index % 2 == 0 else 'head' # 选到预测tail和head的概率相等
         if self.configs.temporal:
+            # TKGC
             head, tail, rel, time = train_triple
         else:
+            # SKGC
             head, tail, rel = train_triple
         head_name, tail_name, rel_name = self.original_ent_name_list[head], self.original_ent_name_list[tail], self.rel_name_list[rel]
+        # 真实entity name
         if self.configs.src_descrip_max_length > 0:
             head_descrip, tail_descrip = '[' + self.src_description_list[head] + ']', '[' + self.src_description_list[tail] + ']'
         else:
@@ -39,6 +43,7 @@ class TrainDataset(Dataset):
             head_target_descrip, tail_target_descrip = '', ''
 
         if mode == 'tail':
+            # 模式为预测tail，即tail作为target
             if self.configs.temporal:
                 src = head_name + ' ' + head_descrip + ' | ' + rel_name + ' | ' + '<extra_id_0>' + ' | ' + time
             else:
@@ -69,6 +74,7 @@ class TrainDataset(Dataset):
         }
 
         if self.configs.use_soft_prompt:
+            # 添加软间隔
             input_index, soft_prompt_index, target_soft_prompt_index = get_soft_prompt_pos(self.configs, source_ids, target_ids, mode)
             out['input_index'] = input_index
             out['soft_prompt_index'] = soft_prompt_index
@@ -155,6 +161,7 @@ class TestDataset(Dataset):
         return out
 
     def collate_fn(self, data):
+        # 手动将抽取的样本堆叠成batch
         agg_data = dict()
         agg_data['source_ids'] = batchify(data, 'source_ids', padding_value=0)
         agg_data['source_mask'] = batchify(data, 'source_mask', padding_value=0)
@@ -169,6 +176,7 @@ class TestDataset(Dataset):
 
 
 class DataModule(pl.LightningDataModule):
+    # pytorch-lightning包中的DataModule类将数据类型DataLoader再次封装，并手动分割为train/test/valid
     def __init__(self, configs, train_triples, valid_triples, test_triples, name_list_dict, prefix_trie_dict, ground_truth_dict):
         super().__init__()
         self.configs = configs
@@ -177,7 +185,7 @@ class DataModule(pl.LightningDataModule):
         self.test_triples = test_triples
         # ent_name_list, rel_name_list .type: list
         self.name_list_dict = name_list_dict
-        self.prefix_trie_dict = prefix_trie_dict
+        self.prefix_trie_dict = prefix_trie_dict # 前缀字典
         self.ground_truth_dict = ground_truth_dict # 真实标签
 
         self.tokenizer = T5Tokenizer.from_pretrained(configs.pretrained_model) # 编码器 default='t5-base'
@@ -186,6 +194,7 @@ class DataModule(pl.LightningDataModule):
         self.test_tail, self.test_head = None, None
 
     def prepare_data(self):
+        # 注意valid/test都是用的Testdataset类，二者除了数据不同在其他方法上一样
         self.train_both = TrainDataset(self.configs, self.tokenizer, self.train_triples, self.name_list_dict, self.prefix_trie_dict, self.ground_truth_dict)
         self.valid_tail = TestDataset(self.configs, self.tokenizer, self.valid_triples, self.name_list_dict, self.prefix_trie_dict, self.ground_truth_dict, 'tail')
         self.valid_head = TestDataset(self.configs, self.tokenizer, self.valid_triples, self.name_list_dict, self.prefix_trie_dict, self.ground_truth_dict, 'head')

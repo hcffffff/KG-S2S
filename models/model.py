@@ -35,6 +35,7 @@ class T5Finetuner(pl.LightningModule):
             self.rel_embed1 = nn.Embedding(self.configs.n_rel, prompt_dim)
             self.rel_embed2 = nn.Embedding(self.configs.n_rel, prompt_dim)
             if self.configs.use_rel_prompt_emb:
+                # TODO 有什么区别吗？
                 self.rel_embed3 = nn.Embedding(self.configs.n_rel, prompt_dim)
                 self.rel_embed4 = nn.Embedding(self.configs.n_rel, prompt_dim)
             else:
@@ -48,14 +49,14 @@ class T5Finetuner(pl.LightningModule):
         src_ids = batched_data['source_ids']
         src_mask = batched_data['source_mask']
         # target_ids, target_mask, labels: .shape: (batch_size, padded_seq_len)
-        target_ids = batched_data['target_ids']
+        target_ids = batched_data['target_ids'] # target_ids 是预测的head/tail(+description) 以input_id表示
         target_mask = batched_data['target_mask']
         labels = target_ids.clone()
-        labels[labels[:, :] == self.trainer.datamodule.tokenizer.pad_token_id] = -100
+        labels[labels[:, :] == self.trainer.datamodule.tokenizer.pad_token_id] = -100 # 填充的token设置为-100不计算损失
         # train_triples .shape: (batch_size, 3)
         train_triples = batched_data['train_triple']
         # ent_rel .shape: (batch_size, 2)
-        ent_rel = batched_data['ent_rel']
+        ent_rel = batched_data['ent_rel'] # mode=tail: [head, rel] mode=head: [tail, rel]
 
         if self.configs.use_soft_prompt:
             # input_index .shape: (batch_size, seq_len + 4)
@@ -65,6 +66,9 @@ class T5Finetuner(pl.LightningModule):
             inputs_emb, input_mask = self.get_soft_prompt_input_embed(src_ids, src_mask, ent_rel, input_index, soft_prompt_index)
 
         if self.configs.seq_dropout > 0.:
+            # 在encoder输入中设置随机dropout 但控制特殊字符(id=1920.32099)不被drop
+            # dropout作用于input mask上 控制是否该token是否可以被看到
+            # TODO 为什么没有32098？
             if self.configs.use_soft_prompt:
                 batch_size, length = input_mask.shape
                 rand = torch.rand_like(input_mask.float())
@@ -284,6 +288,7 @@ class T5Finetuner(pl.LightningModule):
             raise ValueError('Invalid decoder')
 
     def get_soft_prompt_input_embed(self, src_ids, src_mask, ent_rel, input_index, soft_prompt_index):
+        # entity name -> embedding
         # ent_ids, rel_ids .shape: (batch_size, 1)
         ent_ids, rel_ids = ent_rel[:, [0]], ent_rel[:, [1]]
         # ent_emb1, ent_emb2, rel_emb1, rel_emb2 .shape: (batch_size, 1, model_dim)

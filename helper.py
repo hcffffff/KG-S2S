@@ -77,11 +77,11 @@ def get_ground_truth(configs, triples):
 def get_next_token_dict(configs, ent_token_ids_in_trie, prefix_trie):
     '''
     next_token_dict: 大小远远大于entity name数量
-    简单来说是从所有entity name生成独特的前缀表达，如果前缀存在，input_id往后遍历1位，直到这是一个独特的前缀
-    然后以这个前缀为开头，以字典形式记录后一位，然后生成另一个字典项，键为这个前缀加后一位，值为再下一位，循环此操作，直到这个ent_token_ids被遍历完
-    遍历数据集中所有的token(+description)生成next_token_dict
+        简单来说是从所有entity name生成独特的前缀表达，如果前缀存在，input_id往后遍历1位，直到这是一个独特的前缀
+        然后以这个前缀为开头，以字典形式记录后一位，然后生成另一个字典项，键为这个前缀加后一位，值为再下一位，循环此操作，直到这个ent_token_ids被遍历完
+        遍历数据集中所有的token(+description)生成next_token_dict
     neg_candidate_mask: 大小为entity name数量
-    暂时不知道怎么用 TODO
+        暂时不知道怎么用 TODO
     '''
     neg_candidate_mask = []
     next_token_dict = {(): [32099] * configs.n_ent}
@@ -106,6 +106,9 @@ def get_next_token_dict(configs, ent_token_ids_in_trie, prefix_trie):
 
 
 def get_soft_prompt_pos(configs, source_ids, target_ids, mode):
+    # 为数据添加软间隔
+    # '|' 分隔符 id 为 1820 作为 sep
+    # 在实体和实体描述前后添加
     if configs.temporal:
         sep1, sep2, sep3 = [ids for ids in range(len(source_ids)) if source_ids[ids] == 1820]
         if mode == 'tail':
@@ -118,13 +121,14 @@ def get_soft_prompt_pos(configs, source_ids, target_ids, mode):
         sep1, sep2 = [ids for ids in range(len(source_ids)) if source_ids[ids] == 1820]
         if mode == 'tail':
             input_index = [0] + list(range(0, sep1)) + [0] + [sep1] + [0] + list(range(sep1 + 1, sep2)) + [0] + list(range(sep2, len(source_ids)))
-            soft_prompt_index = torch.LongTensor([0, sep1 + 1, sep1 + 3, sep2 + 3])
+            soft_prompt_index = torch.LongTensor([0, sep1 + 1, sep1 + 3, sep2 + 3]) # soft prompt 位置
         elif mode == 'head':
             input_index = list(range(0, sep1 + 1)) + [0] + list(range(sep1 + 1, sep2)) + [0, sep2, 0] + list(range(sep2 + 1, len(source_ids) - 1)) + [0] + [len(source_ids) - 1]
             soft_prompt_index = torch.LongTensor([sep2 + 3, len(source_ids) + 2, sep1 + 1, sep2 + 1])
     if target_ids is None:
         target_soft_prompt_index = None
     else:
+        # target_ids 的soft prompt就是 <extra_id_0>-32099 和 <extra_id_1>-32098
         extra_token_01, extra_token_02 = target_ids.index(32099), target_ids.index(32098)
         target_soft_prompt_index = torch.LongTensor([extra_token_01, extra_token_02])
     return input_index, soft_prompt_index, target_soft_prompt_index
@@ -139,6 +143,7 @@ def construct_prefix_trie(ent_token_ids_in_trie):
 
 
 def batchify(output_dict, key, padding_value=None, return_list=False):
+    # 堆叠输入数据成batch
     tensor_out = [out[key] for out in output_dict]
     if return_list:
         return tensor_out
@@ -147,6 +152,7 @@ def batchify(output_dict, key, padding_value=None, return_list=False):
     if padding_value is None:
         tensor_out = torch.stack(tensor_out, dim=0)
     else:
+        # 填充到相同长度
         tensor_out = pad_sequence(tensor_out, batch_first=True, padding_value=padding_value)
     return tensor_out
 
