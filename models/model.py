@@ -158,8 +158,11 @@ class T5Finetuner(pl.LightningModule):
         return out
 
     def decode(self, src_ids, src_mask, batched_data):
+        # decoder端的输出 只保留 entity name 部分
         def _extract(generated_text):
+            # 提取输出的entity name
             if self.configs.tgt_descrip_max_length > 0:
+                # 输出端有描述信息的话就去掉描述
                 compiler = re.compile(r'<extra_id_0>(.*?)\[')
             else:
                 compiler = re.compile(r'<extra_id_0>(.*)<extra_id_1>')
@@ -207,6 +210,7 @@ class T5Finetuner(pl.LightningModule):
                 return []
 
         if self.configs.decoder in ['beam_search', 'diverse_beam_search']:
+            # diverse beam search 比 beam search 的效果糟糕
             num_beam_groups = self.configs.num_beam_groups if self.configs.decoder == 'diverse_beam_search' else 1
             diversity_penalty = self.configs.diversity_penalty if self.configs.decoder == 'diverse_beam_search' else 0.
             prefix_allowed_tokens_fn = lambda batch_idx, input_ids: _next_candidate(self.configs, batch_idx, input_ids) if self.configs.use_prefix_search else None
@@ -215,8 +219,11 @@ class T5Finetuner(pl.LightningModule):
                 input_index = batched_data['input_index']
                 # soft_prompt_index .shape: (batch_size, 4)
                 soft_prompt_index = batched_data['soft_prompt_index']
+                # 用entity的embedding来代替entity的name作为输入
                 inputs_emb, input_mask = self.get_soft_prompt_input_embed(src_ids, src_mask, self.ent_rel, input_index,
                                                                           soft_prompt_index)
+                # 用了generate方法生成decoder端的文本，并且可以设置是否beam search
+                # 查看参数信息：https://huggingface.co/docs/transformers/main_classes/text_generation
                 outputs = self.T5ForConditionalGeneration.generate(inputs_embeds=inputs_emb,
                                                                    attention_mask=input_mask,
                                                                    return_dict_in_generate=True,
@@ -224,7 +231,7 @@ class T5Finetuner(pl.LightningModule):
                                                                    max_length=self.configs.eval_tgt_max_length,
                                                                    diversity_penalty=diversity_penalty,
                                                                    num_beam_groups=num_beam_groups,
-                                                                   prefix_allowed_tokens_fn=prefix_allowed_tokens_fn,
+                                                                   prefix_allowed_tokens_fn=prefix_allowed_tokens_fn, # 由前缀字典约束允许生成下一个token
                                                                    num_beams=self.configs.num_beams,
                                                                    bos_token_id=0,)
             else:

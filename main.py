@@ -88,6 +88,7 @@ def main():
     print('datamodule construction done.', flush=True)
 
     checkpoint_callback = ModelCheckpoint(
+        # ModelCheckpoint docs: https://pytorch-lightning.readthedocs.io/en/stable/api/pytorch_lightning.callbacks.ModelCheckpoint.html?highlight=ModelCheckpoint
         monitor='val_mrr',
         dirpath=configs.save_dir,
         filename=configs.dataset + '-{epoch:03d}-{' + 'val_mrr' + ':.4f}',
@@ -147,7 +148,7 @@ if __name__ == '__main__':
     parser.add_argument('-num_beam_groups', default=1, type=int, help='')
     parser.add_argument('-src_max_length', default=512, type=int, help='')
     parser.add_argument('-train_tgt_max_length', default=512, type=int, help='')
-    parser.add_argument('-eval_tgt_max_length', default=30, type=int, help='')
+    parser.add_argument('-eval_tgt_max_length', default=30, type=int, help='Maximum description length for generation during inference')
     parser.add_argument('-epoch', dest='epochs', type=int, default=500, help='Number of epochs')
     parser.add_argument('-lr', type=float, default=0.001, help='Starting Learning Rate')
     parser.add_argument('-diversity_penalty', default=0., type=float, help='')
@@ -156,13 +157,13 @@ if __name__ == '__main__':
     parser.add_argument('-optim', default='Adam', type=str, help='')
     parser.add_argument('-decoder', type=str, default='beam_search', help='[beam_search, do_sample, beam_sample_search, diverse_beam_search]')
     parser.add_argument('-log_text', action='store_true', help='')
-    parser.add_argument('-use_prefix_search', action='store_true', help='')
-    parser.add_argument('-src_descrip_max_length', default=0, type=int, help='')
-    parser.add_argument('-tgt_descrip_max_length', default=0, type=int, help='')
-    parser.add_argument('-use_soft_prompt', action='store_true', help='')
-    parser.add_argument('-use_rel_prompt_emb', action='store_true', help='')
-    parser.add_argument('-skip_n_val_epoch', default=0, type=int, help='')
-    parser.add_argument('-seq_dropout', default=0., type=float, help='')
+    parser.add_argument('-use_prefix_search', action='store_true', help='Use constrained decoding method')
+    parser.add_argument('-src_descrip_max_length', default=0, type=int, help='Maximum description length for source entity during training')
+    parser.add_argument('-tgt_descrip_max_length', default=0, type=int, help='Maximum description length for target entity during training')
+    parser.add_argument('-use_soft_prompt', action='store_true', help='Whether to use soft prompt')
+    parser.add_argument('-use_rel_prompt_emb', action='store_true', help='Whether to use relation-specific soft prompt (need to enable -use_soft_prompt)')
+    parser.add_argument('-skip_n_val_epoch', default=0, type=int, help='Number of training epochs without evaluation (evaluation is costly due to the auto-regressive decoding)')
+    parser.add_argument('-seq_dropout', default=0., type=float, help='Value for sequence dropout')
     parser.add_argument('-temporal', action='store_true', help='')
     configs = parser.parse_args()
     n_ent = get_num(configs.dataset_path, configs.dataset, 'entity')
