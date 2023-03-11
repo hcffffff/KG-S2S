@@ -108,6 +108,7 @@ venv.bak/
 
 # add
 /checkpoint
+/outlog
 /data/log
 /data/tmp
 *.out

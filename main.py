@@ -89,10 +89,12 @@ def main():
 
     checkpoint_callback = ModelCheckpoint(
         # ModelCheckpoint docs: https://pytorch-lightning.readthedocs.io/en/stable/api/pytorch_lightning.callbacks.ModelCheckpoint.html?highlight=ModelCheckpoint
-        monitor='val_mrr',
-        dirpath=configs.save_dir,
-        filename=configs.dataset + '-{epoch:03d}-{' + 'val_mrr' + ':.4f}',
-        mode='max'
+        monitor='val_mrr', # in helper.py get_performance()
+        dirpath=configs.save_dir + '/',
+        filename=configs.dataset + '{epoch:03d}-' + '{val_mrr:.4f}',
+        mode='max',
+        save_last=True,  # 测试能否保存最后一个模型，默认为False
+        save_top_k=-1 # 保存所有的模型
     )
     printing_callback = PrintingCallback()
 
@@ -103,12 +105,13 @@ def main():
         'checkpoint_callback': True,  # True
         'logger': False,  # TensorBoardLogger
         'num_sanity_val_steps': 0,  # 2
-        'check_val_every_n_epoch': 3,
+        'check_val_every_n_epoch': 1,
         'enable_progress_bar': True,
         'callbacks': [
             checkpoint_callback,
             printing_callback
         ],
+        'default_root_dir': configs.save_dir # modified
     }
     trainer = pl.Trainer(**trainer_params)
     kw_args = {
@@ -116,16 +119,22 @@ def main():
         'name_list_dict': name_list_dict,
         'prefix_trie_dict': prefix_trie_dict
     }
-
+    # train / test
     if configs.model_path == '':
+        # 没有训练好的模型->根据config训练一个
         model = T5Finetuner(configs, **kw_args)
         print('model construction done.', flush=True)
         trainer.fit(model, datamodule)
-        model_path = checkpoint_callback.best_model_path
+        last_model_path = checkpoint_callback.last_model_path # check whether the saving function works?
+        best_model_path = checkpoint_callback.best_model_path # default
+        print('last_model_path:', last_model_path, flush=True)
+        print('best_model_path:', best_model_path, flush=True)
+        model = T5Finetuner.load_from_checkpoint(last_model_path, strict=False, configs=configs, **kw_args)
     else:
+        # 载入已有模型 并测试
         model_path = configs.model_path
-    print('model_path:', model_path, flush=True)
-    model = T5Finetuner.load_from_checkpoint(model_path, strict=False, configs=configs, **kw_args)
+        print('model_path:', model_path, flush=True)
+        model = T5Finetuner.load_from_checkpoint(model_path, strict=False, configs=configs, **kw_args)
     trainer.test(model, dataloaders=datamodule)
 
 
@@ -173,8 +182,10 @@ if __name__ == '__main__':
     configs.vocab_size = T5Config.from_pretrained(configs.pretrained_model).vocab_size
     configs.model_dim = T5Config.from_pretrained(configs.pretrained_model).d_model
     if configs.save_dir == '':
-        configs.save_dir = os.path.join(os.getcwd(), 'checkpoint', configs.dataset + '-' + str(datetime.now().strftime('%Y-%m-%d-%H-%M-%S')))
-    os.makedirs(configs.save_dir, exist_ok=True)
+        configs.save_dir = os.path.join('./checkpoint', configs.dataset + '-' + str(datetime.now()))
+    if configs.model_path == '':
+        # 非测试模式下，创建模型保存路径 否则不创建
+        os.makedirs(configs.save_dir, exist_ok=True)
     print(configs, flush=True)
 
     pl.seed_everything(configs.seed)

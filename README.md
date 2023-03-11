@@ -49,6 +49,8 @@ The results are:
 ### Training and testing:
 
 - Install all the requirements from `./requirements.txt.`
+- 注意这里测试和训练的预训练模型必须一致，可能用small模型训练需要在eval命令中标出`-pretrained_model`，否则会报错
+- `-skip_n_val_epoch`为跳过前n个epoch不做val处理，务必改为小于 `-epoch` 参数，否则不会保存除最后一个模型外的模型
 - Commands for reproducing the reported results:
   ##### WN18RR
   ```shell
