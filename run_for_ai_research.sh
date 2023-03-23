@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=FB15k-237N-t5-base-epoch-20-02281618
+#SBATCH --job-name=FB15k-237N-t5-base-pure-model-epoch-20-03191350
 #SBATCH --partition=2080ti
 #SBATCH -N 1
 #SBATCH --mem=12G
@@ -18,11 +18,11 @@ python3 main.py -dataset $dataset_name \
                 -pretrained_model "models/pretrained_model/$model_name/" \
                 -batch_size 4 \
                 -val_batch_size 2 \
-                -src_descrip_max_length 80 \
-                -tgt_descrip_max_length 80 \
-                -use_soft_prompt \
-                -use_rel_prompt_emb \
+                -src_max_length 256 \
+                -src_descrip_max_length 128 \
+                -tgt_descrip_max_length 0 \
                 -seq_dropout 0.2 \
                 -num_beams 40 \
-                -eval_tgt_max_length 30 \
+                -eval_tgt_max_length 32 \
                 -skip_n_val_epoch 12
+                -use_prefix_search

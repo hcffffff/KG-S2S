@@ -16,5 +16,5 @@ python3 main.py -dataset 'FB15k-237N' \
                 -use_rel_prompt_emb \
                 -num_beams 40 \
                 -eval_tgt_max_length 30 \
-                -model_path './checkpoint/FB15k-237N-2023-02-28 16:23:36.697135/last.ckpt' \
+                -model_path './checkpoint/FB15k-237N-2023-03-19 13:54:00.990368/FB15k-237Nepoch=019-val_mrr=0.0009.ckpt' \
                 -use_prefix_search
